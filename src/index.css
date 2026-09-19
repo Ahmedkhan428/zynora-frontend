@@ -109,3 +109,26 @@ code {
   padding: 4px 8px;
   background: var(--code-bg);
 }
+
+/* --- MOBILE RESPONSIVENESS FIXES --- */
+@media (max-width: 768px) {
+  /* Login screen container fix for mobile */
+  div[style*="max-width: 1150px"] {
+    flex-direction: column !important;
+    height: auto !important;
+    max-height: 90vh !important;
+    overflow-y: auto !important;
+    padding: 20px !important;
+  }
+
+  /* Sidebar width adjustment on mobile */
+  div[style*="width: 260px"] {
+    width: 100% !important;
+    height: auto !important;
+  }
+
+  /* Dashboard layout stack on mobile */
+  div[style*="display: flex"][style*="height: 100vh"] {
+    flex-direction: column !important;
+  }
+}
