@@ -23,8 +23,8 @@ function App() {
   const [currentSessionId, setCurrentSessionId] = useState(null);
   const [activeView, setActiveView] = useState('chat');
   
-  // Mobile Sidebar Toggle State
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  // Sidebar Open State (Desktop par default true, Mobile par toggle hogi)
+  const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 768);
   
   const [redeemCodeInput, setRedeemCodeInput] = useState('');
   const [redeemResponse, setRedeemResponse] = useState('');
@@ -37,10 +37,6 @@ function App() {
 
   const [chatCount, setChatCount] = useState(() => {
     return parseInt(localStorage.getItem('zynora_chat_count') || '0', 10);
-  });
-
-  const [imageCount, setImageCount] = useState(() => {
-    return parseInt(localStorage.getItem('zynora_image_count') || '0', 10);
   });
 
   const [cooldownEnd, setCooldownEnd] = useState(() => {
@@ -85,7 +81,6 @@ function App() {
         localStorage.setItem('zynora_chat_count', '0');
         localStorage.setItem('zynora_image_count', '0');
         setChatCount(0);
-        setImageCount(0);
         setCooldownEnd(0);
         setTimeLeft('');
       }
@@ -93,18 +88,6 @@ function App() {
 
     return () => clearInterval(interval);
   }, [cooldownEnd, isUnlimited]);
-
-  const fetchSessions = async () => {
-    try {
-      const res = await fetch(`${API_URL}/sessions`);
-      if (res.ok) {
-        const data = await res.json();
-        setSessions(data);
-      }
-    } catch (err) {
-      console.error('Sessions fetch error:', err);
-    }
-  };
 
   useEffect(() => {
     if (!session) return;
@@ -154,7 +137,6 @@ function App() {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading]);
 
-  // Auth Submit Handler
   const handleAuthSubmit = async (e) => {
     e.preventDefault();
     setAuthError('');
@@ -162,16 +144,11 @@ function App() {
 
     if (isSignUp) {
       const { error } = await supabase.auth.signUp({ email, password });
-      if (error) {
-        setAuthError(error.message);
-      } else {
-        setAuthMessage('Signup successful! Please check your email or log in.');
-      }
+      if (error) setAuthError(error.message);
+      else setAuthMessage('Signup successful! Please check your email or log in.');
     } else {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) {
-        setAuthError(error.message);
-      }
+      if (error) setAuthError(error.message);
     }
   };
 
@@ -191,7 +168,7 @@ function App() {
     if (!isUnlimited) {
       const now = Date.now();
       if (cooldownEnd && now < cooldownEnd) {
-        alert(`Limit reached! Please wait ${timeLeft} or redeem a code to continue.`);
+        alert(`Limit reached! Please wait ${timeLeft} or redeem a code.`);
         return;
       }
       if (chatCount >= 100) {
@@ -199,7 +176,7 @@ function App() {
         const newCooldown = now + twentyFourHours;
         localStorage.setItem('zynora_cooldown_end', newCooldown.toString());
         setCooldownEnd(newCooldown);
-        alert("You have reached your limit of 100 chats. Please wait 24 hours or redeem a code.");
+        alert("You have reached your limit of 100 chats.");
         return;
       }
     }
@@ -207,17 +184,13 @@ function App() {
     const userMsg = input;
     setInput('');
     setLoading(true);
-
     setMessages((prev) => [...prev, { role: 'user', content: userMsg }]);
 
     try {
       const res = await fetch(`${API_URL}/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          session_id: currentSessionId,
-          message: userMsg
-        })
+        body: JSON.stringify({ session_id: currentSessionId, message: userMsg })
       });
 
       if (res.ok) {
@@ -226,7 +199,10 @@ function App() {
           setCurrentSessionId(data.session_id);
         }
         setMessages((prev) => [...prev, { role: 'assistant', content: data.reply }]);
-        fetchSessions();
+        
+        // Refresh sessions list
+        const sRes = await fetch(`${API_URL}/sessions`);
+        if (sRes.ok) setSessions(await sRes.json());
 
         if (!isUnlimited) {
           const newCount = chatCount + 1;
@@ -245,9 +221,7 @@ function App() {
     e.stopPropagation();
     if (!sessionId) return;
     try {
-      const res = await fetch(`${API_URL}/sessions/${sessionId}`, {
-        method: 'DELETE'
-      });
+      const res = await fetch(`${API_URL}/sessions/${sessionId}`, { method: 'DELETE' });
       if (res.ok) {
         setSessions((prev) => prev.filter(s => s.id !== sessionId));
         if (currentSessionId === sessionId) {
@@ -287,17 +261,17 @@ function App() {
   };
 
   const sharedButtonStyle = {
-    padding: "14px",
+    padding: "12px 16px",
     background: "linear-gradient(135deg, #7c3aed 0%, #9333ea 100%)",
     color: "white",
     border: "none",
-    borderRadius: "12px",
+    borderRadius: "10px",
     fontWeight: "600",
     cursor: "pointer",
     width: "100%",
     textAlign: "center",
-    boxShadow: "0 4px 16px rgba(147, 51, 234, 0.4)",
-    transition: "all 0.2s ease"
+    boxShadow: "0 4px 12px rgba(147, 51, 234, 0.3)",
+    fontSize: "14px"
   };
 
   if (authLoading) {
@@ -308,113 +282,39 @@ function App() {
     );
   }
 
-  // --- STUNNING COSMIC GLASSMORPHISM LOGIN SCREEN (Google only, no GitHub) ---
+  // --- LOGIN SCREEN ---
   if (!session) {
     return (
-      <div style={{ 
-        display: "flex", 
-        height: "100vh", 
-        background: "linear-gradient(135deg, #090314 0%, #150b2e 50%, #06020c 100%)", 
-        color: "white", 
-        justifyContent: "center", 
-        alignItems: "center", 
-        padding: "40px",
-        boxSizing: "border-box",
-        overflow: "hidden",
-        position: "relative"
-      }}>
-        <div style={{ position: "absolute", width: "400px", height: "400px", background: "rgba(147, 51, 234, 0.15)", filter: "blur(100px)", borderRadius: "50%", top: "10%", left: "15%" }}></div>
-        
-        <div style={{ 
-          display: "flex", 
-          width: "100%", 
-          maxWidth: "1150px", 
-          height: "650px", 
-          background: "rgba(14, 9, 28, 0.45)", 
-          backdropFilter: "blur(24px)", 
-          WebkitBackdropFilter: "blur(24px)",
-          border: "1px solid rgba(255,255,255,0.08)", 
-          borderRadius: "28px", 
-          boxShadow: "0 24px 60px rgba(0,0,0,0.7)", 
-          overflow: "hidden",
-          zIndex: 1
-        }}>
-          {/* Left Hero Section */}
-          <div style={{ flex: 1, padding: "50px", display: "flex", flexDirection: "column", justifyContent: "space-between", borderRight: "1px solid rgba(255,255,255,0.06)" }}>
+      <div style={{ display: "flex", height: "100vh", background: "linear-gradient(135deg, #090314 0%, #150b2e 50%, #06020c 100%)", color: "white", justifyContent: "center", alignItems: "center", padding: "20px", boxSizing: "border-box" }}>
+        <div style={{ display: "flex", width: "100%", maxWidth: "1000px", height: "600px", background: "rgba(14, 9, 28, 0.6)", backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "24px", boxShadow: "0 20px 50px rgba(0,0,0,0.6)", overflow: "hidden" }}>
+          <div style={{ flex: 1, padding: "40px", display: "flex", flexDirection: "column", justifyContent: "space-between", borderRight: "1px solid rgba(255,255,255,0.06)" }}>
             <div>
-              <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "40px" }}>
-                <div style={{ width: "36px", height: "36px", background: "linear-gradient(135deg, #c084fc, #9333ea)", borderRadius: "10px", display: "flex", justifyContent: "center", alignItems: "center", boxShadow: "0 0 15px rgba(192, 132, 252, 0.5)" }}>✦</div>
-                <span style={{ fontSize: "20px", fontWeight: "bold", letterSpacing: "0.5px" }}>Zynora <span style={{ color: "#c084fc" }}>AI</span></span>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "30px" }}>
+                <div style={{ width: "32px", height: "32px", background: "linear-gradient(135deg, #c084fc, #9333ea)", borderRadius: "8px", display: "flex", justifyContent: "center", alignItems: "center" }}>✦</div>
+                <span style={{ fontSize: "18px", fontWeight: "bold" }}>Zynora <span style={{ color: "#c084fc" }}>AI</span></span>
               </div>
-              <h1 style={{ fontSize: "42px", fontWeight: "800", lineHeight: "1.2", marginBottom: "16px" }}>
-                Welcome <span style={{ background: "linear-gradient(90deg, #c084fc, #e879f9)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Back</span> ✨
-              </h1>
-              <p style={{ fontSize: "15px", color: "#a1a1aa", lineHeight: "1.6", maxWidth: "400px" }}>
-                Sign in to continue your journey with Zynora AI. Your ideas, our intelligence.
-              </p>
-            </div>
-
-            <div style={{ display: "flex", gap: "24px" }}>
-              <div>
-                <div style={{ fontSize: "15px", fontWeight: "bold", color: "white", marginBottom: "4px" }}>⚡ Fast</div>
-                <div style={{ fontSize: "13px", color: "#71717a" }}>Instant responses</div>
-              </div>
-              <div>
-                <div style={{ fontSize: "15px", fontWeight: "bold", color: "white", marginBottom: "4px" }}>🛡️ Secure</div>
-                <div style={{ fontSize: "13px", color: "#71717a" }}>Data safety first</div>
-              </div>
-              <div>
-                <div style={{ fontSize: "15px", fontWeight: "bold", color: "white", marginBottom: "4px" }}>✨ Smart</div>
-                <div style={{ fontSize: "13px", color: "#71717a" }}>Advanced AI</div>
-              </div>
+              <h1 style={{ fontSize: "36px", fontWeight: "800", marginBottom: "12px" }}>Welcome <span style={{ color: "#c084fc" }}>Back</span> ✨</h1>
+              <p style={{ fontSize: "14px", color: "#a1a1aa" }}>Sign in to continue your journey with Zynora AI.</p>
             </div>
           </div>
-
-          {/* Right Form Section */}
-          <div style={{ width: "450px", padding: "50px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
-            <div style={{ marginBottom: "28px" }}>
-              <h2 style={{ fontSize: "22px", fontWeight: "700", marginBottom: "6px" }}>{isSignUp ? "Create an Account" : "Sign in to account"}</h2>
-              <p style={{ fontSize: "13px", color: "#a1a1aa" }}>{isSignUp ? "Enter your details to get started" : "Welcome back! Please enter your details."}</p>
-            </div>
-
-            <form onSubmit={handleAuthSubmit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-              <div>
-                <label style={{ display: "block", fontSize: "12px", color: "#d4d4d8", marginBottom: "6px", fontWeight: "500" }}>Email address</label>
-                <input type="email" placeholder="name@example.com" value={email} onChange={(e) => setEmail(e.target.value)} required
-                  style={{ width: "100%", padding: "14px 16px", background: "rgba(19, 13, 34, 0.6)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "12px", color: "white", outline: "none", fontSize: "14px", boxSizing: "border-box" }} />
-              </div>
-
-              <div>
-                <label style={{ display: "block", fontSize: "12px", color: "#d4d4d8", marginBottom: "6px", fontWeight: "500" }}>Password</label>
-                <input type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} required
-                  style={{ width: "100%", padding: "14px 16px", background: "rgba(19, 13, 34, 0.6)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "12px", color: "white", outline: "none", fontSize: "14px", boxSizing: "border-box" }} />
-              </div>
-
-              {authError && <div style={{ fontSize: "13px", color: "#f87171", background: "rgba(248, 113, 113, 0.1)", padding: "10px", borderRadius: "8px" }}>{authError}</div>}
-              {authMessage && <div style={{ fontSize: "13px", color: "#4ade80", background: "rgba(74, 222, 128, 0.1)", padding: "10px", borderRadius: "8px" }}>{authMessage}</div>}
-
-              <button type="submit" style={{ ...sharedButtonStyle, marginTop: "6px" }}>
-                {isSignUp ? "Create Account" : "Sign In"}
-              </button>
+          <div style={{ width: "420px", padding: "40px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+            <h2 style={{ fontSize: "20px", fontWeight: "700", marginBottom: "6px" }}>{isSignUp ? "Create Account" : "Sign In"}</h2>
+            <form onSubmit={handleAuthSubmit} style={{ display: "flex", flexDirection: "column", gap: "14px", marginTop: "16px" }}>
+              <input type="email" placeholder="Email address" value={email} onChange={(e) => setEmail(e.target.value)} required
+                style={{ width: "100%", padding: "12px 14px", background: "rgba(19, 13, 34, 0.8)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "10px", color: "white", outline: "none", fontSize: "14px", boxSizing: "border-box" }} />
+              <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required
+                style={{ width: "100%", padding: "12px 14px", background: "rgba(19, 13, 34, 0.8)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "10px", color: "white", outline: "none", fontSize: "14px", boxSizing: "border-box" }} />
+              {authError && <div style={{ fontSize: "12px", color: "#f87171" }}>{authError}</div>}
+              {authMessage && <div style={{ fontSize: "12px", color: "#4ade80" }}>{authMessage}</div>}
+              <button type="submit" style={sharedButtonStyle}>{isSignUp ? "Sign Up" : "Sign In"}</button>
             </form>
-
-            <div style={{ display: "flex", alignItems: "center", margin: "24px 0", color: "#52525b", fontSize: "12px" }}>
-              <div style={{ flex: 1, height: "1px", background: "rgba(255,255,255,0.08)" }}></div>
-              <span style={{ padding: "0 12px" }}>or continue with</span>
-              <div style={{ flex: 1, height: "1px", background: "rgba(255,255,255,0.08)" }}></div>
-            </div>
-
-            <div style={{ display: "flex", gap: "12px" }}>
-              <button onClick={() => handleSocialLogin('google')} style={{ flex: 1, padding: "12px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "12px", color: "white", cursor: "pointer", fontSize: "13px", fontWeight: "500" }}>
-                Google
-              </button>
-            </div>
-
-            <div style={{ textAlign: "center", marginTop: "24px", fontSize: "13px", color: "#a1a1aa" }}>
+            <button onClick={() => handleSocialLogin('google')} style={{ width: "100%", marginTop: "12px", padding: "12px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "10px", color: "white", cursor: "pointer", fontSize: "13px" }}>
+              Continue with Google
+            </button>
+            <div style={{ textAlign: "center", marginTop: "20px", fontSize: "13px", color: "#a1a1aa" }}>
               {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
-              <span onClick={() => { setIsSignUp(!isSignUp); setAuthError(''); setAuthMessage(''); }}
-                style={{ color: "#c084fc", cursor: "pointer", fontWeight: "600" }}>
-                {isSignUp ? "Sign In" : "Create account"}
+              <span onClick={() => setIsSignUp(!isSignUp)} style={{ color: "#c084fc", cursor: "pointer", fontWeight: "600" }}>
+                {isSignUp ? "Sign In" : "Sign Up"}
               </span>
             </div>
           </div>
@@ -423,141 +323,113 @@ function App() {
     );
   }
 
-  // --- MAIN APP DASHBOARD WHEN LOGGED IN (With Mobile Responsive Slide-out Sidebar) ---
+  // --- MAIN APP DASHBOARD (Pure Flexbox Layout for Laptop & Mobile) ---
   return (
-    <div className="flex h-screen bg-[#0c0718] text-white overflow-hidden relative">
+    <div style={{ display: "flex", height: "100vh", width: "100vw", background: "#0c0718", color: "white", overflow: "hidden", position: "relative" }}>
       
-      {/* Mobile Backdrop Overlay when Sidebar is Open */}
-      {isSidebarOpen && (
-        <div 
-          onClick={() => setIsSidebarOpen(false)}
-          className="fixed inset-0 bg-black/50 z-40 md:hidden"
-        />
-      )}
-
-      {/* Sidebar (Drawer style on mobile, fixed on desktop) */}
-      <aside className={`
-        fixed inset-y-0 left-0 z-50 w-64 bg-[#110a24] border-r border-white/10 flex flex-col p-4 
-        transform transition-transform duration-300 ease-in-out
-        ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} 
-        md:translate-x-0 md:static
-      `}>
-        <div className="flex justify-between items-center mb-5">
-          <div className="text-lg font-bold text-[#c084fc]">✦ Zynora AI</div>
-          {/* Close button for mobile inside sidebar */}
-          <button 
-            onClick={() => setIsSidebarOpen(false)}
-            className="md:hidden text-gray-400 hover:text-white text-lg p-1"
-          >
-            ✕
-          </button>
+      {/* Sidebar Drawer */}
+      <div style={{
+        width: "260px",
+        height: "100%",
+        background: "#110a24",
+        borderRight: "1px solid rgba(255,255,255,0.08)",
+        display: "flex",
+        flexDirection: "column",
+        padding: "16px",
+        boxSizing: "border-box",
+        position: window.innerWidth <= 768 ? "absolute" : "relative",
+        zIndex: 50,
+        transform: isSidebarOpen ? "translateX(0)" : "translateX(-100%)",
+        transition: "transform 0.3s ease"
+      }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+          <div style={{ fontSize: "16px", fontWeight: "bold", color: "#c084fc" }}>✦ Zynora AI</div>
+          <button onClick={() => setIsSidebarOpen(false)} style={{ background: "transparent", border: "none", color: "#a1a1aa", cursor: "pointer", fontSize: "16px" }}>✕</button>
         </div>
-        
-        <button onClick={() => { setActiveView('chat'); setCurrentSessionId(null); setMessages([]); setIsSidebarOpen(false); }}
-          style={{ ...sharedButtonStyle, opacity: activeView === 'chat' ? 1 : 0.85, marginBottom: "10px" }}>
+
+        <button onClick={() => { setActiveView('chat'); setCurrentSessionId(null); setMessages([]); if(window.innerWidth <= 768) setIsSidebarOpen(false); }} style={{ ...sharedButtonStyle, marginBottom: "8px" }}>
           + New Chat
         </button>
 
-        <button onClick={() => { setActiveView('redeem'); setIsSidebarOpen(false); }}
-          style={{ ...sharedButtonStyle, opacity: activeView === 'redeem' ? 1 : 0.85, marginBottom: "20px" }}>
+        <button onClick={() => { setActiveView('redeem'); if(window.innerWidth <= 768) setIsSidebarOpen(false); }} style={{ ...sharedButtonStyle, marginBottom: "16px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}>
           🔑 Redeem Code
         </button>
 
         {!isUnlimited && (
-          <div style={{ background: "rgba(255,255,255,0.03)", padding: "10px", borderRadius: "8px", marginBottom: "12px", fontSize: "12px", border: "1px solid rgba(255,255,255,0.06)" }}>
-            <div style={{ color: "#a1a1aa", marginBottom: "4px" }}>Free Tier Usage:</div>
+          <div style={{ background: "rgba(255,255,255,0.03)", padding: "10px", borderRadius: "8px", marginBottom: "12px", fontSize: "12px", border: "1px solid rgba(255,255,255,0.05)" }}>
+            <div style={{ color: "#a1a1aa", marginBottom: "2px" }}>Free Tier:</div>
             <div>Chats: {chatCount} / 100</div>
-            <div>Images: {imageCount} / 10</div>
-            {cooldownEnd > 0 && <div style={{ color: "#f87171", marginTop: "4px" }}>Cooldown: {timeLeft}</div>}
+            {cooldownEnd > 0 && <div style={{ color: "#f87171", marginTop: "2px" }}>Cooldown: {timeLeft}</div>}
           </div>
         )}
 
-        <div style={{ fontSize: "12px", color: "#71717a", marginBottom: "8px" }}>Recent Chats</div>
+        <div style={{ fontSize: "11px", color: "#71717a", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Recent Chats</div>
         <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: "4px" }}>
           {sessions.map((s) => (
-            <div key={s.id} onClick={() => { setActiveView('chat'); setCurrentSessionId(s.id); setIsSidebarOpen(false); }}
-              style={{ padding: "10px", background: currentSessionId === s.id ? "rgba(147, 51, 234, 0.2)" : "transparent", borderRadius: "8px", cursor: "pointer", display: "flex", justifyContent: "space-between", fontSize: "13px" }}>
-              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", width: "160px" }}>{s.title}</span>
+            <div key={s.id} onClick={() => { setActiveView('chat'); setCurrentSessionId(s.id); if(window.innerWidth <= 768) setIsSidebarOpen(false); }}
+              style={{ padding: "10px", background: currentSessionId === s.id ? "rgba(147, 51, 234, 0.2)" : "transparent", borderRadius: "8px", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "13px" }}>
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", width: "160px", color: currentSessionId === s.id ? "#fff" : "#cbd5e1" }}>{s.title}</span>
               <button onClick={(e) => deleteSession(e, s.id)} style={{ background: "transparent", border: "none", color: "#f87171", cursor: "pointer" }}>🗑️</button>
             </div>
           ))}
         </div>
 
-        {/* Logout Button */}
-        <button onClick={handleLogout} style={{ padding: "10px", background: "rgba(248, 113, 113, 0.1)", color: "#f87171", border: "1px solid rgba(248, 113, 113, 0.2)", borderRadius: "8px", fontWeight: "600", cursor: "pointer", marginTop: "12px" }}>
+        <button onClick={handleLogout} style={{ padding: "10px", background: "rgba(248, 113, 113, 0.1)", color: "#f87171", border: "1px solid rgba(248, 113, 113, 0.2)", borderRadius: "8px", fontWeight: "600", cursor: "pointer", marginTop: "10px", fontSize: "13px" }}>
           Log Out
         </button>
-      </aside>
+      </div>
 
-      {/* Main Panel */}
-      <div className="flex-1 flex flex-col h-full w-full overflow-hidden">
+      {/* Main Content Area */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", height: "100%", overflow: "hidden", background: "#0c0718" }}>
         
-        {/* Top Header with Hamburger Toggle for Mobile */}
-        <div className="flex items-center gap-3 px-4 py-3 border-b border-white/10 bg-[#0c0718]">
-          <button 
-            onClick={() => setIsSidebarOpen(true)} 
-            className="md:hidden text-white bg-purple-900/60 p-2 rounded-lg border border-purple-500/30 flex items-center justify-center text-sm"
-          >
+        {/* Top Navbar */}
+        <div style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px 20px", borderBottom: "1px solid rgba(255,255,255,0.08)", background: "#0c0718" }}>
+          <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} style={{ background: "rgba(147, 51, 234, 0.2)", border: "1px solid rgba(147, 51, 234, 0.4)", color: "white", padding: "6px 10px", borderRadius: "8px", cursor: "pointer", fontSize: "14px" }}>
             ☰
           </button>
-          <div className="text-base font-semibold">
-            ✦ Zynora AI {activeView === 'redeem' ? 'Redeem Center' : 'Chat'}
+          <div style={{ fontSize: "15px", fontWeight: "600" }}>
+            Zynora AI {activeView === 'redeem' ? '— Redeem Center' : ''}
           </div>
         </div>
 
+        {/* View Switcher: Redeem or Chat */}
         {activeView === 'redeem' ? (
-          <div style={{ flex: 1, overflowY: "auto", padding: "32px 24px", display: "flex", flexDirection: "column", alignItems: "center" }}>
-            <div style={{ maxWidth: "650px", width: "100%", background: "#16102a", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "16px", padding: "32px", boxShadow: "0 8px 24px rgba(0,0,0,0.3)" }}>
-              <h2 style={{ fontSize: "20px", marginBottom: "16px", color: "#c084fc", fontWeight: "700" }}>Benefits:</h2>
-              <div style={{ display: "flex", flexDirection: "column", gap: "10px", fontSize: "14px", color: "#d4d4d8", marginBottom: "28px", lineHeight: "1.6" }}>
-                <div>⚡ More AI Usage — Get additional AI requests</div>
-                <div>🚀 Priority Access — Enjoy faster access during busy times</div>
-                <div>✨ Premium Features — Unlock selected premium AI tools</div>
-                <div>🎨 Image Generation — Get access to image generation features</div>
-                <div>💾 More History — Keep more of your conversations</div>
-                <div>🔓 Exclusive Access — Unlock special features available through codes</div>
-              </div>
-
-              <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: "24px" }}>
-                <h3 style={{ fontSize: "16px", marginBottom: "12px", color: "white" }}>Enter Redeem Code</h3>
-                <form onSubmit={handleRedeemSubmit} style={{ display: "flex", gap: "12px" }}>
-                  <input type="text" placeholder="Enter your code here..." value={redeemCodeInput} onChange={(e) => setRedeemCodeInput(e.target.value)}
-                    style={{ flex: 1, padding: "14px 18px", background: "#130d22", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "12px", color: "white", outline: "none", fontSize: "14px" }} />
-                  <button type="submit" style={{ padding: "0 24px", background: "#9333ea", color: "white", border: "none", borderRadius: "12px", fontWeight: "bold", cursor: "pointer", fontSize: "14px" }}>Redeem</button>
-                </form>
-                {redeemResponse && (
-                  <div style={{ marginTop: "16px", fontSize: "14px", color: redeemResponseType === 'error' ? "#f87171" : "#4ade80" }}>
-                    {redeemResponse}
-                  </div>
-                )}
-                {isUnlimited && (
-                  <div style={{ marginTop: "12px", fontSize: "14px", color: "#4ade80", fontWeight: "600" }}>
-                    ✨ Status: Unlimited Access Unlocked!
-                  </div>
-                )}
-              </div>
+          <div style={{ flex: 1, overflowY: "auto", padding: "30px", display: "flex", justifyContent: "center", alignItems: "flex-start" }}>
+            <div style={{ maxWidth: "600px", width: "100%", background: "#130d22", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "16px", padding: "28px" }}>
+              <h2 style={{ fontSize: "18px", marginBottom: "12px", color: "#c084fc" }}>Unlock Unlimited Access</h2>
+              <p style={{ fontSize: "13px", color: "#a1a1aa", marginBottom: "20px" }}>Enter your special code below to unlock unrestricted AI usage.</p>
+              <form onSubmit={handleRedeemSubmit} style={{ display: "flex", gap: "10px" }}>
+                <input type="text" placeholder="Enter code here..." value={redeemCodeInput} onChange={(e) => setRedeemCodeInput(e.target.value)}
+                  style={{ flex: 1, padding: "12px 14px", background: "#0c0718", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "10px", color: "white", outline: "none", fontSize: "14px" }} />
+                <button type="submit" style={{ padding: "0 20px", background: "#9333ea", color: "white", border: "none", borderRadius: "10px", fontWeight: "bold", cursor: "pointer" }}>Redeem</button>
+              </form>
+              {redeemResponse && <div style={{ marginTop: "14px", fontSize: "13px", color: redeemResponseType === 'error' ? "#f87171" : "#4ade80" }}>{redeemResponse}</div>}
+              {isUnlimited && <div style={{ marginTop: "10px", fontSize: "13px", color: "#4ade80", fontWeight: "600" }}>✨ Unlimited Access Active!</div>}
             </div>
           </div>
         ) : (
           <>
             <div style={{ flex: 1, overflowY: "auto", padding: "24px", display: "flex", flexDirection: "column", gap: "16px" }}>
               {messages.length === 0 ? (
-                <div style={{ margin: "auto", textAlign: "center", color: "#71717a" }}><h2>How can I help you today?</h2></div>
+                <div style={{ margin: "auto", textAlign: "center", color: "#71717a" }}>
+                  <h2 style={{ fontSize: "22px", fontWeight: "600", color: "#e2e8f0" }}>How can I help you today?</h2>
+                </div>
               ) : (
                 messages.map((m, idx) => (
-                  <div key={idx} style={{ alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: "75%", background: m.role === 'user' ? '#9333ea' : '#16102a', padding: "14px 18px", borderRadius: "14px", fontSize: "14px" }}>
+                  <div key={idx} style={{ alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: "75%", background: m.role === 'user' ? '#9333ea' : '#16102a', padding: "12px 16px", borderRadius: "12px", fontSize: "14px", lineHeight: "1.5" }}>
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.content}</ReactMarkdown>
                   </div>
                 ))
               )}
-              {loading && <div style={{ color: "#a1a1aa", fontStyle: "italic" }}>Zynora is thinking...</div>}
+              {loading && <div style={{ color: "#a1a1aa", fontSize: "13px", fontStyle: "italic" }}>Zynora is thinking...</div>}
               <div ref={chatEndRef} />
             </div>
-            <form onSubmit={handleSendMessage} style={{ padding: "20px 24px", borderTop: "1px solid rgba(255,255,255,0.08)", display: "flex", gap: "12px" }}>
+
+            <form onSubmit={handleSendMessage} style={{ padding: "16px 20px", borderTop: "1px solid rgba(255,255,255,0.08)", display: "flex", gap: "10px", background: "#0c0718" }}>
               <input type="text" placeholder={cooldownEnd > 0 && timeLeft ? `Cooldown active (${timeLeft})...` : "Ask anything..."} 
                 value={input} onChange={(e) => setInput(e.target.value)} disabled={Boolean(cooldownEnd > 0 && timeLeft && !isUnlimited)}
-                style={{ flex: 1, padding: "14px", background: "#130d22", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "12px", color: "white", outline: "none" }} />
-              <button type="submit" style={{ padding: "0 24px", background: "#9333ea", color: "white", border: "none", borderRadius: "12px", fontWeight: "bold", cursor: "pointer" }}>Send</button>
+                style={{ flex: 1, padding: "12px 16px", background: "#130d22", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "10px", color: "white", outline: "none", fontSize: "14px" }} />
+              <button type="submit" style={{ padding: "0 20px", background: "#9333ea", color: "white", border: "none", borderRadius: "10px", fontWeight: "bold", cursor: "pointer", fontSize: "14px" }}>Send</button>
             </form>
           </>
         )}
