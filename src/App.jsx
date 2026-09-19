@@ -50,7 +50,7 @@ function App() {
   const [timeLeft, setTimeLeft] = useState('');
 
   const chatEndRef = useRef(null);
-  const API_URL = 'http://localhost:8080';
+  const API_URL = 'https://zynora-backend-production.up.railway.app';
 
   // Check Supabase Auth Session on Load
   useEffect(() => {
