@@ -23,8 +23,8 @@ function App() {
   const [currentSessionId, setCurrentSessionId] = useState(null);
   const [activeView, setActiveView] = useState('chat');
   
-  // Sidebar Open State (Desktop par default true, Mobile par toggle hogi)
-  const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 768);
+  // Sidebar Open State (Desktop par default true)
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   
   const [redeemCodeInput, setRedeemCodeInput] = useState('');
   const [redeemResponse, setRedeemResponse] = useState('');
@@ -37,6 +37,10 @@ function App() {
 
   const [chatCount, setChatCount] = useState(() => {
     return parseInt(localStorage.getItem('zynora_chat_count') || '0', 10);
+  });
+
+  const [, setImageCount] = useState(() => {
+    return parseInt(localStorage.getItem('zynora_image_count') || '0', 10);
   });
 
   const [cooldownEnd, setCooldownEnd] = useState(() => {
@@ -81,6 +85,7 @@ function App() {
         localStorage.setItem('zynora_chat_count', '0');
         localStorage.setItem('zynora_image_count', '0');
         setChatCount(0);
+        setImageCount(0);
         setCooldownEnd(0);
         setTimeLeft('');
       }
@@ -200,7 +205,6 @@ function App() {
         }
         setMessages((prev) => [...prev, { role: 'assistant', content: data.reply }]);
         
-        // Refresh sessions list
         const sRes = await fetch(`${API_URL}/sessions`);
         if (sRes.ok) setSessions(await sRes.json());
 
@@ -323,64 +327,62 @@ function App() {
     );
   }
 
-  // --- MAIN APP DASHBOARD (Pure Flexbox Layout for Laptop & Mobile) ---
+  // --- MAIN APP DASHBOARD WITHOUT CROSS BUTTON IN SIDEBAR ---
   return (
-    <div style={{ display: "flex", height: "100vh", width: "100vw", background: "#0c0718", color: "white", overflow: "hidden", position: "relative" }}>
+    <div style={{ display: "flex", height: "100vh", width: "100vw", background: "#0c0718", color: "white", overflow: "hidden" }}>
       
-      {/* Sidebar Drawer */}
+      {/* Sidebar - Cross button removed completely */}
       <div style={{
-        width: "260px",
+        width: isSidebarOpen ? "260px" : "0px",
+        minWidth: isSidebarOpen ? "260px" : "0px",
         height: "100%",
         background: "#110a24",
-        borderRight: "1px solid rgba(255,255,255,0.08)",
+        borderRight: isSidebarOpen ? "1px solid rgba(255,255,255,0.08)" : "none",
         display: "flex",
         flexDirection: "column",
-        padding: "16px",
+        padding: isSidebarOpen ? "16px" : "0px",
         boxSizing: "border-box",
-        position: window.innerWidth <= 768 ? "absolute" : "relative",
-        zIndex: 50,
-        transform: isSidebarOpen ? "translateX(0)" : "translateX(-100%)",
-        transition: "transform 0.3s ease"
+        overflow: "hidden",
+        transition: "all 0.3s ease"
       }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", whiteSpace: "nowrap" }}>
           <div style={{ fontSize: "16px", fontWeight: "bold", color: "#c084fc" }}>✦ Zynora AI</div>
-          <button onClick={() => setIsSidebarOpen(false)} style={{ background: "transparent", border: "none", color: "#a1a1aa", cursor: "pointer", fontSize: "16px" }}>✕</button>
         </div>
 
-        <button onClick={() => { setActiveView('chat'); setCurrentSessionId(null); setMessages([]); if(window.innerWidth <= 768) setIsSidebarOpen(false); }} style={{ ...sharedButtonStyle, marginBottom: "8px" }}>
+        <button onClick={() => { setActiveView('chat'); setCurrentSessionId(null); setMessages([]); }} style={{ ...sharedButtonStyle, marginBottom: "8px", whiteSpace: "nowrap" }}>
           + New Chat
         </button>
 
-        <button onClick={() => { setActiveView('redeem'); if(window.innerWidth <= 768) setIsSidebarOpen(false); }} style={{ ...sharedButtonStyle, marginBottom: "16px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}>
+        <button onClick={() => setActiveView('redeem')} style={{ ...sharedButtonStyle, marginBottom: "16px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", whiteSpace: "nowrap" }}>
           🔑 Redeem Code
         </button>
 
         {!isUnlimited && (
-          <div style={{ background: "rgba(255,255,255,0.03)", padding: "10px", borderRadius: "8px", marginBottom: "12px", fontSize: "12px", border: "1px solid rgba(255,255,255,0.05)" }}>
+          <div style={{ background: "rgba(255,255,255,0.03)", padding: "10px", borderRadius: "8px", marginBottom: "12px", fontSize: "12px", border: "1px solid rgba(255,255,255,0.05)", whiteSpace: "nowrap" }}>
             <div style={{ color: "#a1a1aa", marginBottom: "2px" }}>Free Tier:</div>
             <div>Chats: {chatCount} / 100</div>
             {cooldownEnd > 0 && <div style={{ color: "#f87171", marginTop: "2px" }}>Cooldown: {timeLeft}</div>}
           </div>
         )}
 
-        <div style={{ fontSize: "11px", color: "#71717a", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Recent Chats</div>
+        <div style={{ fontSize: "11px", color: "#71717a", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px", whiteSpace: "nowrap" }}>Recent Chats</div>
         <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: "4px" }}>
           {sessions.map((s) => (
-            <div key={s.id} onClick={() => { setActiveView('chat'); setCurrentSessionId(s.id); if(window.innerWidth <= 768) setIsSidebarOpen(false); }}
-              style={{ padding: "10px", background: currentSessionId === s.id ? "rgba(147, 51, 234, 0.2)" : "transparent", borderRadius: "8px", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "13px" }}>
-              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", width: "160px", color: currentSessionId === s.id ? "#fff" : "#cbd5e1" }}>{s.title}</span>
+            <div key={s.id} onClick={() => { setActiveView('chat'); setCurrentSessionId(s.id); }}
+              style={{ padding: "10px", background: currentSessionId === s.id ? "rgba(147, 51, 234, 0.2)" : "transparent", borderRadius: "8px", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "13px", whiteSpace: "nowrap" }}>
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", width: "150px", color: currentSessionId === s.id ? "#fff" : "#cbd5e1" }}>{s.title}</span>
               <button onClick={(e) => deleteSession(e, s.id)} style={{ background: "transparent", border: "none", color: "#f87171", cursor: "pointer" }}>🗑️</button>
             </div>
           ))}
         </div>
 
-        <button onClick={handleLogout} style={{ padding: "10px", background: "rgba(248, 113, 113, 0.1)", color: "#f87171", border: "1px solid rgba(248, 113, 113, 0.2)", borderRadius: "8px", fontWeight: "600", cursor: "pointer", marginTop: "10px", fontSize: "13px" }}>
+        <button onClick={handleLogout} style={{ padding: "10px", background: "rgba(248, 113, 113, 0.1)", color: "#f87171", border: "1px solid rgba(248, 113, 113, 0.2)", borderRadius: "8px", fontWeight: "600", cursor: "pointer", marginTop: "10px", fontSize: "13px", whiteSpace: "nowrap" }}>
           Log Out
         </button>
       </div>
 
       {/* Main Content Area */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", height: "100%", overflow: "hidden", background: "#0c0718" }}>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", height: "100%", overflow: "hidden", background: "#0c0718", transition: "all 0.3s ease" }}>
         
         {/* Top Navbar */}
         <div style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px 20px", borderBottom: "1px solid rgba(255,255,255,0.08)", background: "#0c0718" }}>
