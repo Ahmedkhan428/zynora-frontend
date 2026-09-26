@@ -43,24 +43,9 @@ function App() {
   const chatEndRef = useRef(null);
   const imageInputRef = useRef(null);
   const authUserIdRef = useRef(null);
-  const API_URL = "https://zynora-backend-production.up.railway.app";
-  const [deviceId] = useState(() => {
-    const storageKey = 'zynora_device_id';
-    let id = localStorage.getItem(storageKey);
-    if (!id) {
-      if (window.crypto.randomUUID) {
-        id = window.crypto.randomUUID();
-      } else {
-        const bytes = new Uint8Array(16);
-        window.crypto.getRandomValues(bytes);
-        bytes[6] = (bytes[6] & 0x0f) | 0x40;
-        bytes[8] = (bytes[8] & 0x3f) | 0x80;
-        id = [...bytes].map((byte) => byte.toString(16).padStart(2, '0')).join('').replace(/^(........)(....)(....)(..)(............)$/, '$1-$2-$3-$4-$5');
-      }
-      localStorage.setItem(storageKey, id);
-    }
-    return id;
-  });
+  const API_URL = import.meta.env.DEV
+    ? `${window.location.protocol}//${window.location.hostname}:8000`
+    : "https://zynora-backend-production.up.railway.app";
 
   const chatApiFetch = useCallback((path, options = {}) => {
     if (!session?.access_token) throw new Error('Sign in to access chat history');
@@ -69,10 +54,9 @@ function App() {
       headers: {
         ...options.headers,
         Authorization: `Bearer ${session.access_token}`,
-        'X-Device-ID': deviceId,
       },
     });
-  }, [session, deviceId, API_URL]);
+  }, [session, API_URL]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -124,7 +108,11 @@ function App() {
     };
 
     loadSessions();
-    return () => { cancelled = true; };
+    const syncInterval = window.setInterval(loadSessions, 5000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(syncInterval);
+    };
   }, [session, currentSessionId, chatApiFetch]);
 
   useEffect(() => {
@@ -159,7 +147,11 @@ function App() {
     };
 
     loadMessages();
-    return () => { cancelled = true; };
+    const syncInterval = window.setInterval(loadMessages, 5000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(syncInterval);
+    };
   }, [currentSessionId, session, chatApiFetch]);
 
   useEffect(() => {
