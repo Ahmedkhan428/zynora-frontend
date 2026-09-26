@@ -43,7 +43,7 @@ function App() {
   const chatEndRef = useRef(null);
   const imageInputRef = useRef(null);
   const authUserIdRef = useRef(null);
-  const API_URL = `${window.location.protocol}//${window.location.hostname}:8000`;
+  const API_URL = "https://zynora-backend-production.up.railway.app";
   const [deviceId] = useState(() => {
     const storageKey = 'zynora_device_id';
     let id = localStorage.getItem(storageKey);
