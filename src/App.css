@@ -20,7 +20,7 @@
 html, body {
   width: 100%;
   min-height: 100%;
-  overflow: hidden;
+  overflow-x: hidden;
 }
 
 body {
@@ -31,7 +31,7 @@ body {
   width: 100vw;
   max-width: 100vw;
   overscroll-behavior: none;
-  overflow: hidden;
+  overflow-y: auto;
 }
 
 .zy-container {
@@ -541,6 +541,12 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px
 .mobile-close { display: none; }
 
 .workspace { position: relative; z-index: 1; display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
+
+.home-view,
+.conversation-view {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
 .topbar { position: relative; z-index: 4; display: flex; align-items: center; justify-content: space-between; min-height: 78px; padding: 15px 22px 8px; }
 .sidebar-toggle { display: grid; margin-right: 18px; border-radius: 12px; background: rgba(13, 27, 83, .42); }
 .workspace-heading { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
@@ -762,7 +768,12 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px
   .topbar-actions { gap: 0; padding: 3px; }
   .top-action { width: 35px; height: 35px; }
   .top-search { position: absolute; top: 49px; right: 0; width: min(260px, calc(100vw - 75px)); padding: 10px; border: 1px solid var(--line); border-radius: 12px; background: rgba(12, 21, 63, .96); }
-  .home-view, .conversation-view { width: calc(100% - 18px); padding-bottom: 12px; }
+  .home-view, .conversation-view {
+    width: calc(100% - 18px);
+    padding-bottom: 12px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
   .home-view { justify-content: flex-start; }
   .welcome-block { margin: auto 0 25px; }
   .hero-mark { width: 65px; height: 65px; margin-bottom: 10px; }
